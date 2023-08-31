@@ -1,14 +1,16 @@
-<h1>Tera - Desafio de interpretação e predição do valor de venda de imóveis</h1>
+# Tera - Desafio de interpretação e predição do valor de venda de imóveis
 
-Esse código apresenta uma resolução para o desafio de regressão proposto pela Tera. O conjunto de dados descreve a venda de propriedades residenciais individuais de uma cidade americana, de 2006 a 2010. Ao todo são 2.930 observações e um grande número de features (23 nominais, 23 ordinais, 14 discretas e 20 contínuas) envolvidas na avaliação do valor dos imóveis, ou seja, são 80 variáveis explicativas.
+## Introdução e contexto
 
-O trabalho ao longo desse código foca, primeiro, em fazer uma análise exploratória dos dados e feature engeneering para organização ou manutenção das variáveis. Depois, são apresentadas leituras realizadas a partir da criação de um modelo de regressão linear e de um modelo de Machine Learning utilizando o algoritmo RandomForest.
+Esse código apresenta uma resolução para o desafio de regressão proposto durante o curso de Data Science e Machine Learning da Tera. O conjunto de dados descreve a venda de propriedades residenciais individuais de uma cidade americana, entre 2006 e 2010. São 2.930 observações e um npumero considerável de features (23 nominais, 23 ordinais, 14 discretas e 20 contínuas). O dataset tem, ao todo, 80 variáveis explicativas para a determinação do valor do imóvel.
+
+Esse trabalho é dividido em duas partes: Em um primeiro momento é realizada a análise exploratória dos dados, além das feature engineering para organização e manutenção das variáveis. Depois, são apresentadas leituras realizadas a partir de modelos de Machine Learning, usando algorítmos de regressão e emsembles. 
 
 Grandes agradecimentos à equipe da Tera, em especial ao expert Marcus Oliveira, que foi de grande ajuda na solução do problema.
 
-<h2>1. Configurações iniciais</h2>
+## 1. Configurações iniciais
 
-<h3>1.1 Importação das bibliotecas que serão utilizas ao longo do código</h3>
+### 1.1 Importação das bibliotecas que serão utilizas ao longo do código
 
 
 ```python
@@ -25,9 +27,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split 
-
-
 #Estatística - Modelo de interpretação
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api         as sm
@@ -35,46 +34,55 @@ import statsmodels.formula.api as smf
 
 #Criação do modelo de Machine Learning
 from sklearn.impute import SimpleImputer
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2, f_regression
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.compose import make_column_transformer
 from category_encoders.target_encoder import TargetEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error
 from sklearn.inspection import permutation_importance
+from sklearn.model_selection import train_test_split 
 ```
 
-<h3>1.2 Elaboração de algumas funções utilizadas posteriormente no código</h3>
+### 1.2 Elaboração de algumas funções utilizadas posteriormente no código
 
 
 ```python
-#Funções utilizadas ao longo do código
+def plota_cat(variaveis: list, figsize: tuple, dataframe: pd.DataFrame()) -> plt.figure:
+    '''Dada uma lista de variáveis categóricas, plota uma figura
+       com os gráficos de violino de todas as variáveis na lista'''
+    total_plots = len(variaveis)
+    i = 0
+
+    fig = plt.figure(figsize=figsize)
+    fig.subplots_adjust(hspace=0.8, wspace=0.3)
 
 
-#Calcula o VIF para identificar multicolinearidade
-def calc_vif(dataframe):
+    for var in variaveis:
+        ax = fig.add_subplot(total_plots, 2, i+1)
+
+        sns.violinplot(x=var, y=var_resp, data=df, ax=ax, color='#435058')
+        ax.set_title(var)
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        if dataframe[var].nunique() > 6:
+            ax.xaxis.set_tick_params(rotation=90)
+        i += 1
+
+
+def calc_vif(dataframe: pd.DataFrame()) -> pd.DataFrame():
+    '''Calcula o VIF para identificar multicolinearidade'''
     vif = pd.DataFrame()
     vif['variables'] = dataframe.columns
     vif['VIF'] = [variance_inflation_factor(dataframe.values, i) for i in range(dataframe.shape[1])]
     return(vif)
 
-def plot_vif(vif):
+def plot_vif(vif: pd.DataFrame()) -> None:
+    '''Apresenta a soma do VIF'''
     print('vars: ', list(vif.columns))
     print('Variable Inflation Factors:', vif.VIF.sum(), '\n')
 
-def train_test_valid_split(
-    df: pd.DataFrame,
-    features: list,
-    target: str,
-    test_size: float,
-    valid_size: float,
-    random_state: int,
-) -> Tuple[np.array, np.array, np.array, np.array, np.array, np.array]:
-    """Splits dataframe in training, testing and validation sets"""
+def train_test_valid_split(df: pd.DataFrame, features: list, target: str, test_size: float, valid_size: float, random_state: int) -> Tuple[np.array, np.array, np.array, np.array, np.array, np.array]:
+    '''Cria os folds de treino, teste e validação'''
 
-    # The first train/test split
+    #Treino e teste
     (X_train, X_test, y_train, y_test) = train_test_split(
         df[features],
         df[target],
@@ -82,14 +90,18 @@ def train_test_valid_split(
         random_state=random_state,
     )
 
-    # The second train/test split
+    #Validação
     (X_test, X_val, y_test, y_val) = train_test_split(
         X_test, y_test, test_size=valid_size, random_state=random_state
     )
 
     return X_train, X_test, X_val, y_train, y_test, y_val
 
-def metrics_report(y, y_pred, dataset_name='valid'):
+def metrics_report(y: pd.Series(), y_pred: pd.Series(), dataset_name='valid') -> pd.DataFrame():
+  '''Cria um dataframe contendo as
+     principais métricas do modelo de
+     Machine Learning criado'''
+  
   mean_y = np.mean(y)
   mean_pred = np.mean(y_pred)
 
@@ -106,122 +118,176 @@ def metrics_report(y, y_pred, dataset_name='valid'):
   report[dataset_name] = report[dataset_name].round(2)
   return report
 
+def random_forest_preprocessing(X_train: pd.DataFrame(), X_val: pd.DataFrame(), X_test: pd.DataFrame(), y_train: pd.Series(), categoricas: list) -> pd.DataFrame():
 
-
-```
-
-
-```python
-#base original
-base = pd.read_csv('base.csv', skipinitialspace=True)
-```
-
-
-    ---------------------------------------------------------------------------
-
-    NameError                                 Traceback (most recent call last)
-
-    Cell In[1], line 2
-          1 #base original
-    ----> 2 base = pd.read_csv('base.csv', skipinitialspace=True)
+  '''Realiza o pré-processamento das variáveis categóricas utilizadas
+    no algoritmo de RandomForest. O pré-processamento é realizado através
+    do método de target Encodding'''
     
+  target_encoder = TargetEncoder()
+  X_train[categoricas] = target_encoder.fit_transform(X_train[categoricas], y_train)
+  X_val[categoricas] = target_encoder.transform(X_val[categoricas])
+  X_test[categoricas] = target_encoder.transform(X_test[categoricas])
 
-    NameError: name 'pd' is not defined
+  return X_train, X_val, X_test
 
 
-<h2>2. EDA da base original</h2>
+```
+
+## 2. EDA da base original
 
 
 ```python
+#Carregamento da base original
+df = pd.read_csv('base.csv', skipinitialspace=True)
+
 #Verificando as informações sobre nulos e tipo de cada coluna no dataframe
-base.info(verbose=True)
+df.info(verbose=True)
 ```
 
-
-    ---------------------------------------------------------------------------
-
-    NameError                                 Traceback (most recent call last)
-
-    ~\AppData\Local\Temp/ipykernel_2868/471892998.py in <module>
-          1 #Verificando as informações sobre nulos e tipo de cada coluna no dataset
-    ----> 2 base.info(verbose=True)
+    <class 'pandas.core.frame.DataFrame'>
+    RangeIndex: 1460 entries, 0 to 1459
+    Data columns (total 81 columns):
+     #   Column                Non-Null Count  Dtype  
+    ---  ------                --------------  -----  
+     0   Id                    1460 non-null   int64  
+     1   ClasseImovel          1460 non-null   int64  
+     2   ClasseZona            1460 non-null   object 
+     3   Fachada               1201 non-null   float64
+     4   TamanhoLote           1460 non-null   int64  
+     5   Rua                   1460 non-null   object 
+     6   Beco                  91 non-null     object 
+     7   FormaProp             1460 non-null   object 
+     8   PlanoProp             1460 non-null   object 
+     9   Servicos              1460 non-null   object 
+     10  ConfigLote            1460 non-null   object 
+     11  InclinacaoLote        1460 non-null   object 
+     12  Bairro                1460 non-null   object 
+     13  Estrada1              1460 non-null   object 
+     14  Estrada2              1460 non-null   object 
+     15  TipoHabitacao         1460 non-null   object 
+     16  EstiloHabitacao       1460 non-null   object 
+     17  Qualidade             1460 non-null   int64  
+     18  Condicao              1460 non-null   int64  
+     19  AnoConstrucao         1460 non-null   int64  
+     20  AnoReforma            1460 non-null   int64  
+     21  TipoTelhado           1460 non-null   object 
+     22  MaterialTelhado       1460 non-null   object 
+     23  Exterior1             1460 non-null   object 
+     24  Exterior2             1460 non-null   object 
+     25  TipoAlvenaria         588 non-null    object 
+     26  AreaAlvenaria         1452 non-null   float64
+     27  QualidadeCobertura    1460 non-null   object 
+     28  CondicaoExterna       1460 non-null   object 
+     29  TipoFundacao          1460 non-null   object 
+     30  AlturaPorao           1423 non-null   object 
+     31  CondicaoPorao         1423 non-null   object 
+     32  ParedePorao           1422 non-null   object 
+     33  TipoAcabPorao1        1423 non-null   object 
+     34  AreaAcabPorao1        1460 non-null   int64  
+     35  TipoAcabPorao2        1422 non-null   object 
+     36  AreaAcabPorao2        1460 non-null   int64  
+     37  AreaInacabPorao       1460 non-null   int64  
+     38  AreaPorao             1460 non-null   int64  
+     39  Aquecimento           1460 non-null   object 
+     40  QualidadeAquecimento  1460 non-null   object 
+     41  ArCentral             1460 non-null   object 
+     42  InstalacaoEletrica    1459 non-null   object 
+     43  AreaTerreo            1460 non-null   int64  
+     44  Area2Andar            1460 non-null   int64  
+     45  BaixaQualiAreaAcab    1460 non-null   int64  
+     46  AreaConstruida        1460 non-null   int64  
+     47  BanheiroPorao         1460 non-null   int64  
+     48  LavaboPorao           1460 non-null   int64  
+     49  Banheiro              1460 non-null   int64  
+     50  Lavabo                1460 non-null   int64  
+     51  BedroomAbvGr          1460 non-null   int64  
+     52  KitchenAbvGr          1460 non-null   int64  
+     53  QualidadeCozinha      1460 non-null   object 
+     54  TotalQuartos          1460 non-null   int64  
+     55  Funcionalidade        1460 non-null   object 
+     56  Lareira               1460 non-null   int64  
+     57  QualdiadeLareira      770 non-null    object 
+     58  LocalGaragem          1379 non-null   object 
+     59  AnoGaragem            1379 non-null   float64
+     60  AcabamentoGaragem     1379 non-null   object 
+     61  CarrosGaragem         1460 non-null   int64  
+     62  AreaGaragem           1460 non-null   int64  
+     63  QualidadeGaragem      1379 non-null   object 
+     64  CondicaoGaragem       1379 non-null   object 
+     65  EntradaPavimentada    1460 non-null   object 
+     66  AreaDeck              1460 non-null   int64  
+     67  AreaVarandaAberta     1460 non-null   int64  
+     68  AreaVarandaFechada    1460 non-null   int64  
+     69  AreaVaranda3Estacoes  1460 non-null   int64  
+     70  AreaAlpendre          1460 non-null   int64  
+     71  AreaPiscina           1460 non-null   int64  
+     72  QualidadePiscina      7 non-null      object 
+     73  QualidadeCerca        281 non-null    object 
+     74  Outros                54 non-null     object 
+     75  ValorOutros           1460 non-null   int64  
+     76  MesVenda              1460 non-null   int64  
+     77  AnoVenda              1460 non-null   int64  
+     78  TipoVenda             1460 non-null   object 
+     79  CondicaoVenda         1460 non-null   object 
+     80  PrecoVenda            1460 non-null   int64  
+    dtypes: float64(3), int64(35), object(43)
+    memory usage: 924.0+ KB
     
 
-    NameError: name 'base' is not defined
-
-
-<h4>2.1 Anotação da variável resposta e das features numéricas e categóricas (cardinais e ordinais)</h4>
+### 2.1 Anotação da variável resposta e das features numéricas e categóricas (cardinais e ordinais)
 
 
 ```python
 #Variável resposta
-v_resposta = 'PrecoVenda'
+var_resp = 'PrecoVenda'
 
 #Lista das variáveis numéricas
-v_numericos = base.select_dtypes(include=["int", "float"]).columns.to_list()
-v_numericos.remove(v_resposta)
-v_numericos.remove('ClasseImovel')
+var_num = df.select_dtypes(include=["int", "float"]).columns.to_list()
+var_num.remove(var_resp)
+var_num.remove('ClasseImovel') #Removida pois é categórica
 
 #Lista das variáveis categóricas
-v_categoricas = base.select_dtypes(exclude=["int", "float"]).columns.to_list()
-v_categoricas.append('ClasseImovel')
+v_cat = df.select_dtypes(exclude=["int", "float"]).columns.to_list()
+v_cat.append('ClasseImovel')
 
-#Distinção das variáveis categóricas
-cat_ordinal = ['FormaProp', 'Servicos', 'InclinacaoLote', 'Qualidade', 'Condicao', 'QualidadeCobertura', 'CondicaoExterna', 'AlturaPorao', 'CondicaoPorao', 'ParedePorao', 'TipoAcabPorao1', 'TipoAcabPorao2', 'QualidadeAquecimento', 'QualidadeCozinha', 'QualdiadeLareira', 'AcabamentoGaragem', 'QualidadeGaragem', 'CondicaoGaragem', 'EntradaPavimentada']
-
-cat_cardinal = [x for x in v_categoricas if x not in cat_ordinal]
+#Distinção das variáveis categóricas, a diferenciação entre cardinais e ordinais nesse caso foi realizada para facilitar a visualização dos gráficos
+v_cat_ord = ['FormaProp', 'Servicos', 'InclinacaoLote', 'Qualidade', 'Condicao', 'QualidadeCobertura', 'CondicaoExterna', 'AlturaPorao', 'CondicaoPorao', 'ParedePorao', 'TipoAcabPorao1', 'TipoAcabPorao2', 'QualidadeAquecimento', 'QualidadeCozinha', 'QualdiadeLareira', 'AcabamentoGaragem', 'QualidadeGaragem', 'CondicaoGaragem', 'EntradaPavimentada']
+v_cat_card = [x for x in v_cat if x not in v_cat_ord]
 
 ```
 
-<h4>2.2 Entendendo a distribuição da variável resposta</h4>
+### 2.2 Entendendo a distribuição da variável resposta
 
-A versão original da variável resposta é comparada a uma versão com tratamento logaritmico. Percebe-se que a variável em base logaritmica possui distribuição mais próxima à normal, logo, é a mais correta para o trabalho no modelo de interpretação por regressão linear
+Para efeito de comparação, são feitos os gráficos de distribuição da variável reposta nas formas original e logarítmica. Como há grande diferença entre as duas bases, uma vez que variável em base logaritmica possui distribuição mais próxima à normal, é a mais correta para o trabalho no modelo de interpretação por regressão linear. A escolha procura diminuir os possíveis erros causados pelos outliers no valor do imóvel.
 
 
 ```python
 #Criando uma variável com o log dos preços para verificar diferenças entre a distribuição da variável em forma comum e logarítimica 
-base['logPrecoVenda'] = np.log(base['PrecoVenda'])
+df['logPrecoVenda'] = np.log(df[var_resp])
 
 #Verificando graficamente a distribuição das variáveis
-fig = make_subplots(rows= 2, cols=2, subplot_titles=["Distribuição da variável PrecoVenda", "Distribuição da variável logPrecoVenda", "Area Contruida x Preço de Venda", "Área construída x log Preço de Venda"])
-
-fig.add_trace(go.Histogram(x = base['PrecoVenda']), row=1,col=1)
-fig.add_trace(go.Histogram(x = base['logPrecoVenda']), row=1, col=2)
-fig.add_trace(go.Scatter(x=base['PrecoVenda'], y=base['AreaConstruida'], mode='markers', showlegend=True), row=2, col=1)
-fig.add_trace(go.Scatter(x=base['logPrecoVenda'], y=base['AreaConstruida'], mode='markers'), row=2, col=2)
-
-
-fig.update_layout(width=1200, height=600)
-fig.update_yaxes(title_text=('Teste1', 'Teste1', 'Teste1', 'Teste1'), row=(1,1,2,2), col=(1,2,1,2))
-fig.show()
+fig = make_subplots(rows= 2, cols=2, subplot_titles=["Distribuição da variável PrecoVenda", "Distribuição da variável logPrecoVenda", "Area Contruida x Preço de Venda", "Área construída x log Preço de Venda"])\
+    .add_trace(go.Histogram(x = df[var_resp]), row=1,col=1)\
+    .add_trace(go.Histogram(x = df['logPrecoVenda']), row=1, col=2)\
+    .add_trace(go.Scatter(x=df[var_resp], y=df['AreaConstruida'], mode='markers', showlegend=True), row=2, col=1)\
+    .add_trace(go.Scatter(x=df['logPrecoVenda'], y=df['AreaConstruida'], mode='markers'), row=2, col=2)\
+    .update_layout(width=1200, height=600)\
+    .update_yaxes(title_text=('Teste1', 'Teste1', 'Teste1', 'Teste1'), row=(1,1,2,2), col=(1,2,1,2))\
+    .show()
 
 
 ```
 
 
 
-<h4>2.3 Variáveis categóricas: Examinando relações entre as categorias e alterações no valor das residências</h4>
+### 2.3 Variáveis categóricas: Examinando relações entre as categorias e alterações no valor das residências
 
-São criados gráficos violinos de todas as variáveis para entender quais dessas têm diferenciações mais significativas entre o conjunto das respostas e podem indicar uma diferenciação maior nos modelos. A diferenciação entre cardinais e ordinais nesse caso foi realizada para facilitar a visualização dos gráficos
+São criados gráficos violinos de todas as variáveis para entender quais dessas têm diferenciações mais significativas no valor do imóvel. As variáveis com maior impacto no valor podem ser as mais interessantes para utilização no modelo. 
 
 
 ```python
-#Area de figura
-fig = plt.figure(figsize=(10,90))
-fig.subplots_adjust(hspace=0.8, wspace=0.3)
-total_plots = len(v_categoricas)
-i = 0
-
-#Iteração nas variáveis categóricas ordinais
-for var in cat_ordinal:
-    ax = fig.add_subplot(total_plots, 2, i+1)
-
-    sns.violinplot(x=var, y=v_resposta, data=base, ax=ax, color='#435058')
-    ax.set_title(var)
-    ax.set_ylabel('')
-    ax.set_xlabel('')
-    i += 1
-
+plota_cat(variaveis=v_cat_card, figsize=(10,90), dataframe=df)
 ```
 
 
@@ -232,33 +298,8 @@ for var in cat_ordinal:
 
 
 ```python
-#Area de figura
-fig = plt.figure(figsize=(10,90))
-fig.subplots_adjust(hspace=0.8, wspace=0.3)
-total_plots = len(v_categoricas)
-i = 0
-
-#Iteração nas variáveis categóricas cardinais
-for var in cat_cardinal:
-    ax = fig.add_subplot(total_plots, 2, i+1)
-
-    sns.violinplot(x=var, y=v_resposta, data=base, ax=ax, color='#435058')
-    ax.set_title(var)
-    ax.set_ylabel('')
-    ax.set_xlabel('')
-    i += 1
-```
-
-
-    
-![png](Regressao_Valor_de_Imovel_Tera_files/Regressao_Valor_de_Imovel_Tera_18_0.png)
-    
-
-
-
-```python
 #Verificando o grau de cardinalidade das variáveis categóricas
-base[v_categoricas].nunique().sort_values(ascending=False)
+df[v_cat].nunique().sort_values(ascending=False)
 ```
 
 
@@ -296,12 +337,12 @@ base[v_categoricas].nunique().sort_values(ascending=False)
     PlanoProp                4
     ParedePorao              4
     QualidadeCozinha         4
-    TipoAlvenaria            4
     QualidadeCobertura       4
     AlturaPorao              4
     CondicaoPorao            4
     InclinacaoLote           3
     AcabamentoGaragem        3
+    TipoAlvenaria            3
     EntradaPavimentada       3
     QualidadePiscina         3
     Rua                      2
@@ -312,29 +353,27 @@ base[v_categoricas].nunique().sort_values(ascending=False)
 
 
 
-<h2>3. Feature Engineering</h2>
+## 3. Feature Engineering
 
-<h4>3.1 Removendo Nulos</h4>
+### 3.1 Removendo Nulos
 
 São removidas variáveis com valores muito altos de inputs nulos. Os dados nulos de outras variáveis são inputados a partir da mediana do conjunto para valores numéricos ou do input mais frequente para valores categóricos
 
 
 ```python
-base_corrigida = base.drop(['QualidadePiscina', 'Outros', 'Beco', 'QualidadeCerca', 'QualdiadeLareira'], axis=1)
+df = df.drop(['QualidadePiscina', 'Outros', 'Beco', 'QualidadeCerca', 'QualdiadeLareira'], axis=1)
 nulos_categoricas = []
 nulos_numericas = []
 
-for col in base_corrigida:
-    if base_corrigida[col].isna().sum() != 0:
-        print('{}: {} nulos'.format(col,base_corrigida[col].isna().sum()))
-        if base_corrigida[col].dtype == 'float64':
-            nulos_numericas.append(col)
-        else:
-            nulos_categoricas.append(col)
+for col in df:
+    if df[col].isna().sum() != 0:
+        print('{}: {} nulos'.format(col,df[col].isna().sum()))
+        nulos_numericas.append(col) if df[col].dtype == 'float64' else nulos_categoricas.append(col) #Cria listas com as colunas que tem inputs nulos, é importante para o mascaramento
+
 ```
 
     Fachada: 259 nulos
-    TipoAlvenaria: 8 nulos
+    TipoAlvenaria: 872 nulos
     AreaAlvenaria: 8 nulos
     AlturaPorao: 37 nulos
     CondicaoPorao: 37 nulos
@@ -349,39 +388,38 @@ for col in base_corrigida:
     CondicaoGaragem: 81 nulos
     
 
+Como alguns modelos de Machine Learning não aceitam colunas com valores nulos, é realizado um mascaramento em todas as colunas que tem valores vazios. O mascaramento é feito com o método "SimpleImputer" e preenche as colunas com os valores medianos (no caso de colunas numéricas) ou com os valores mais frequentes (para o caso de colunas categóricas)
+
 
 ```python
-
 #Criando os recortes
-x1 = base_corrigida[nulos_numericas] 
-x2 = base_corrigida[nulos_categoricas]
+num_com_nulos = df[nulos_numericas] 
+cat_com_nulos = df[nulos_categoricas]
 
 #Criando os inputers
-mascara1 = SimpleImputer(missing_values=np.nan, strategy='median')
-mascara2 = SimpleImputer(missing_values=np.nan, strategy='most_frequent')
-mascara1 = mascara1.fit(x1)
-mascara2 = mascara2.fit(x2)
+mascara1 = SimpleImputer(missing_values=np.nan, strategy='median').fit(num_com_nulos)
+mascara2 = SimpleImputer(missing_values=np.nan, strategy='most_frequent').fit(cat_com_nulos)
 
 #Substituindo os valores nulos do recorte pelos inputers
-base_corrigida[nulos_numericas] = mascara1.transform(x1) 
-base_corrigida[nulos_categoricas] = mascara2.transform(x2)
+df[nulos_numericas] = mascara1.transform(num_com_nulos) 
+df[nulos_categoricas] = mascara2.transform(cat_com_nulos)
 ```
 
-<h4>3.2 Removendo colunas categóricas com alta cardinalidade</h4>
+### 3.2 Removendo colunas categóricas com alta cardinalidade
 
-Optou-se pela remoção das colunas alta cardinalidade ou sem interpretação interessante apenas para simplificação da leitura dos modelos posteriores. Outras situações situações podem pedir o agrupamento dessas variáveis ou outro tipo de trabalho.
+Optei pela remoção das colunas com alta cardinalidade ou sem interpretação interessante apenas para simplificação da leitura dos modelos posteriores. Outras situações podem pedir o agrupamento dessas variáveis ou outro tipo de trabalho.
 
 
 ```python
-base_corrigida = base_corrigida.drop(['Bairro','Exterior1','Exterior2','ClasseImovel','Funcionalidade', 'Estrada1', 'Estrada2', 'MesVenda', 'ValorOutros'], axis=1)
+df = df.drop(['Bairro','Exterior1','Exterior2','ClasseImovel','Funcionalidade', 'Estrada1', 'Estrada2', 'MesVenda', 'ValorOutros'], axis=1)
 ```
 
-Optei trabalhar apenas com imóveis vendidos sob condição normal, uma vez que são os mais recorrentes e interessante para a análise. Além disso, imóveis vendidos sob outras condições podem distorcer a análise significativamente
+Nesse notebook trabalho com imóveis vendidos sob condição normal, uma vez que são os mais recorrentes e interessante para a análise. Além disso, imóveis vendidos sob outras condições podem distorcer a análise significativamente.
 
 
 ```python
-base_corrigida = base_corrigida.query("CondicaoVenda == 'Normal'")
-base_corrigida.drop('CondicaoVenda', axis=1)
+df = df.query("CondicaoVenda == 'Normal'")
+df.drop('CondicaoVenda', axis=1)
 ```
 
 
@@ -700,47 +738,59 @@ base_corrigida.drop('CondicaoVenda', axis=1)
 
 
 
-Substituição de valores de pés quadrados para m², visando facilitar a leitura
+As variáveis de área estão em pés quadrados, uma notação mais difícil de entender. Para facilitar a visualização dos dados, converti as áreas para m².
 
 
 ```python
-area_features = [var for var in v_numericos if 'area' in var.lower()]
-base_corrigida[area_features] = base_corrigida[area_features].apply(lambda x: x*0.0929)
-base_corrigida[['Fachada', 'TamanhoLote']] = base_corrigida[['Fachada', 'TamanhoLote']].apply(lambda x: x*0.0929)
+area_features = [var for var in var_num if 'area' in var.lower()]
+converte_m2 = lambda x: x*0.0929
+
+df[area_features] = df[area_features].apply(converte_m2)
+df[['Fachada', 'TamanhoLote']] = df[['Fachada', 'TamanhoLote']].apply(converte_m2)
 ```
 
-Criação de novas variáveis
+Criei novas variáveis a partir da manipulação de colunas existentes.
+- *Taxa_Ocupacao_Lote*: A taxa de ocupação diz quanto do lote do terreno é ocupado pela projeção do edifício.
+- *Coeficiente_Aproveitamento*: O coeficiente de aproveitamento é uma relação entre a área construída e a área do terreno. É um quantitativo importante para o mercado imobiliário, uma vez que empreendimentos com melhor CA conseguem ter mais unidades e provavelmente uma melhor rentabilidade.
+- *Ultima_Reforma*: Quantidade em anos desde a última reforma, espera-se que habitações com reformas recentes tenham maior preço de venda.
+- *Banheiros_por_Quarto*: Uma variável que indica quantos banheiros há na casa em relação ao número de quartos, uma casa com BpQ > 1 apresenta grandes chances de possuir 1 ou mais suítes, enquanto valores menores que 1 indicam quartos sem banheiro individual na casa.
 
 
 ```python
-base_corrigida['Taxa_Ocupacao_Lote'] = base_corrigida['AreaTerreo']/base_corrigida['TamanhoLote'] 
-base_corrigida['Coeficiente_Aproveitamento'] = base_corrigida['AreaConstruida']/base_corrigida['TamanhoLote'] 
-base_corrigida['Ultima_Reforma'] = base_corrigida['AnoReforma'] - base_corrigida['AnoConstrucao']
-base_corrigida['Banheiros_por_Quarto'] = base_corrigida['Banheiro']/base_corrigida['TotalQuartos']
+df['Taxa_Ocupacao_Lote'] = df['AreaTerreo']/df['TamanhoLote'] 
+df['Coeficiente_Aproveitamento'] = df['AreaConstruida']/df['TamanhoLote'] 
+df['Ultima_Reforma'] = df['AnoReforma'] - df['AnoConstrucao']
+df['Banheiros_por_Quarto'] = df['Banheiro']/df['TotalQuartos']
 ```
 
-<h2>4. Criando modelo de interpretação a partir de regressão linear</h2>
+## 4. Criando um modelo de interpretação a partir de regressão linear
 
 O desafio proposto pela Tera era o de criar um modelo de regressão linear que explicasse ao menos 85% da variação do preço, considerando um máximos de 6 variáveis.
 
-<h3>4.1 Inserindo as variáveis e rodando o modelo de regressão linear</h3>
+### 4.1 Inserindo as variáveis e rodando o modelo de regressão linear
+
+Primeiro é feito o encoding de variáveis categóricas para a utilização nos modelos de regressão, essas variáveis são utilizadas na fórmula para obtenção da regressão a partir da biblioteca statsmodel. A escolha da statsmodel ocorreu pela completude da informação da regressão.
+
+O modelo responde 85,6% da variação dos preços. Todas as variáveis rejeitam a hipótese nula e são estatísticamente significantes.
+
+Foram testadas algumas combinações para a regressão linear, mas para a melhor legibilidade do código só é apresentado o conjunto final das variáveis escolhidas.
 
 
 ```python
-#Realizando enconding de algumas variáveis categóricas que foram testadas no modelo de regressão
+#Realizando enconding de algumas variáveis categóricas que são testadas no modelo de regressão
 
-base_corrigida['QualidadeCozinha'] = base_corrigida['QualidadeCozinha'].map({'Po':0, 'Fa':1, 'TA':2, 'Gd':3, 'Ex':4})
-base_corrigida['AlturaPorao'] = base_corrigida['AlturaPorao'].map({'Po':0, 'Fa':1, 'TA':2, 'Gd':3, 'Ex':4})
-base_corrigida[['QualidadeCozinha', 'AlturaPorao']] = base_corrigida[['QualidadeCozinha', 'AlturaPorao']].astype(int)
-base_alterada = pd.get_dummies(base_corrigida, columns=['EstiloHabitacao', 'TipoHabitacao'], drop_first=True)
+df['QualidadeCozinha'] = df['QualidadeCozinha'].map({'Po':0, 'Fa':1, 'TA':2, 'Gd':3, 'Ex':4})
+df['AlturaPorao'] = df['AlturaPorao'].map({'Po':0, 'Fa':1, 'TA':2, 'Gd':3, 'Ex':4})
+df[['QualidadeCozinha', 'AlturaPorao']] = df[['QualidadeCozinha', 'AlturaPorao']].astype(int)
+df_dummies = pd.get_dummies(df, columns=['EstiloHabitacao', 'TipoHabitacao'], drop_first=True)
 ```
 
 
 ```python
-var_escolhidas = ["AreaConstruida","AreaPorao","Ultima_Reforma","CarrosGaragem","Condicao","Qualidade"]
-formula ="logPrecoVenda ~ " + ' + '.join(var_escolhidas)
+vars_reg = ["AreaConstruida","AreaPorao","Ultima_Reforma","CarrosGaragem","Condicao","Qualidade"]
+formula ="logPrecoVenda ~ " + ' + '.join(vars_reg)
 
-model = smf.ols(formula = formula, data = base_alterada).fit()
+model = smf.ols(formula = formula, data = df_dummies).fit()
 print(model.summary())
 
 ```
@@ -750,8 +800,8 @@ print(model.summary())
     Dep. Variable:          logPrecoVenda   R-squared:                       0.856
     Model:                            OLS   Adj. R-squared:                  0.856
     Method:                 Least Squares   F-statistic:                     1185.
-    Date:                Wed, 04 Jan 2023   Prob (F-statistic):               0.00
-    Time:                        13:33:24   Log-Likelihood:                 664.68
+    Date:                Thu, 31 Aug 2023   Prob (F-statistic):               0.00
+    Time:                        14:21:24   Log-Likelihood:                 664.68
     No. Observations:                1198   AIC:                            -1315.
     Df Residuals:                    1191   BIC:                            -1280.
     Df Model:                           6                                         
@@ -779,22 +829,20 @@ print(model.summary())
     strong multicollinearity or other numerical problems.
     
 
-O modelo responde 85,6% da variação dos preços. Todas as variáveis rejeitam a hipótese nula e são estatísticamente significantes
+### 4.2 verificando multicolinearidade
 
-<h3>4.2 verificando multicolinearidade</h3>
-
-A multicolinearidade entre as variáveis é verificada através do heatmap das variáveis escolhidas e do Variance Inflation Factor (VIF) entre as variáveis. É importante notar que o VIF foi de 97, muito acima do admitido em testes de maior rigor estatístico ou artigos.
+A multicolinearidade entre as variáveis é verificada através do heatmap das variáveis escolhidas e do Variance Inflation Factor (VIF) entre as variáveis. É importante notar que o VIF foi de 97, muito acima do admitido em testes de maior rigor estatístico ou artigos, mas aceitável para o trabalho proposto.
 
 
 ```python
 #Criando heatmap para verificação da colinearidade
-sns.heatmap(base_alterada[["AreaConstruida","AreaPorao","Ultima_Reforma","CarrosGaragem","Condicao","Qualidade"]].corr(), annot=True)
+sns.heatmap(df_dummies[["AreaConstruida","AreaPorao","Ultima_Reforma","CarrosGaragem","Condicao","Qualidade"]].corr(), annot=True)
 ```
 
 
 
 
-    <AxesSubplot:>
+    <AxesSubplot: >
 
 
 
@@ -807,8 +855,8 @@ sns.heatmap(base_alterada[["AreaConstruida","AreaPorao","Ultima_Reforma","Carros
 
 ```python
 #Variance Inflation Factor para verificar multicolinearidade entre as variáveis
-vif = calc_vif(base_alterada[var_escolhidas])
-print('vars: ', var_escolhidas)
+vif = calc_vif(df_dummies[vars_reg])
+print('vars: ', vars_reg)
 print('Variable Inflation Factors:', vif.VIF.sum(), '\n')
 vif
 ```
@@ -880,16 +928,16 @@ vif
 
 
 
-<h3>4.3 - Verificando distribuição dos resíduos para validação do modelo</h3>
+<h3>4.3 - Validando o modelo proposto a partir da análise dos resíduos</h3>
 
 A distribuição dos erros é relativamente homoscedástica e os resíduos têm distribuição com alto grau de normalidade
 
 
 ```python
 fig, axs = plt.subplots(1, 3, figsize=(20,5), facecolor='white') 
-splot1 = sns.regplot(x=base_alterada.AreaConstruida, y=model.resid, ax=axs[0])
-splot2 = sm.qqplot(model.resid, line="s", ax=axs[1])
-splot3 = sns.histplot(model.resid, kde=True, ax=axs[2])
+sns.regplot(x=df_dummies.AreaConstruida, y=model.resid, ax=axs[0])
+sm.qqplot(model.resid, line="s", ax=axs[1])
+sns.histplot(model.resid, kde=True, ax=axs[2])
 
 axs[0].set_title('Distribuição dos erros (Checando Heteroscedasticidade)')
 axs[1].set_title('Distribuição dos resíduos (QQPlot)')
@@ -912,7 +960,7 @@ fig.text(s='(VIF: {})'.format(vif.VIF.sum()), y=0.95, x=0.61)
     
 
 
-<h3> 4.4 Interpretação do modelo de regressão linear </h3>
+### 4.4 Interpretação do modelo de regressão linear
 
 
 ```python
@@ -944,67 +992,41 @@ A melhoria de 1 grau de condição aumenta o preço da residência em 6.21%
 
 A melhoria de 1 grau de qualidade aumenta o preço da residência em 10.59%
 
-<h2>5 - Entendendo as variáveis mais importantes na predição do preço a partir de RandomForest</h2>
+## 5 - Utilizando RandomForest para uma melhor predição do valor do imóvel
+
+O algoritmo de regressão linear dá boa explicabilidade sobre o modelo, mas o RandomForest pode alcançar melhores índices na predição, com um erro quadrático menor. Por ser um algoritmo não linear, o RF lida muito melhor com desbalancemantos nas variáveis numéricas e outros problemas que travam o modelo de regressão linear. Apesar da ótima performance do modelo de RF, sua interpretação é difícil, isso justifica o uso anterior do algoritmo de regressão linear para entendimento da constituição do valor do imóvel.
 
 
 ```python
-#Obtendo novamente as variáveis numéricas e categóricas do modelo
+#Obtendo novamente as variáveis numéricas e categóricas do modelo, dessa vez a partir da base mais trabalhada
 
-v_resposta = 'PrecoVenda'
+var_resp = 'PrecoVenda'
 
 #Lista das variáveis numéricas
-v_numericos = base_alterada.select_dtypes(include=["int", "float"]).columns.to_list()
-v_numericos.remove(v_resposta)
+var_num = df.select_dtypes(include=["int", "float"]).columns.to_list()
+var_num.remove(var_resp)
+var_num.remove('logPrecoVenda')
 
 #Lista das variáveis categóricas
-v_categoricas = base_alterada.select_dtypes(exclude=["int", "float"]).columns.to_list()
+var_cat = df.select_dtypes(exclude=["int", "float"]).columns.to_list()
 ```
+
+### 5.1 - Criando os splits para treino, validação e teste do modelo
 
 
 ```python
-v_numericos.remove('logPrecoVenda')
-```
-
-<h3>5.1 - Criando os splits para treino, validação e teste do modelo</h3>
-
-
-```python
-features = v_categoricas + v_numericos
+features = var_cat + var_num
 
 (X_train, X_test, X_val,
-y_train, y_test, y_val) = train_test_valid_split(base_alterada, features=features, target=v_resposta, test_size=0.3, valid_size=0.5, random_state=31)
+y_train, y_test, y_val) = train_test_valid_split(df, features=features, target=var_resp, test_size=0.3, valid_size=0.5, random_state=31)
+
+X_train, X_val, X_test = random_forest_preprocessing(X_train, X_val, X_test, y_train, categoricas=var_cat)
 
 ```
 
+### 5.2 Rodando o baseline do RandomForest
 
-```python
-def random_forest_preprocessing(X_train, X_val, X_test, y_train):
-
-  # Categoricals pre-processing (categorical encoders)
-  target_encoder = TargetEncoder()
-  X_train[v_categoricas] = target_encoder.fit_transform(X_train[v_categoricas], y_train)
-  X_val[v_categoricas] = target_encoder.transform(X_val[v_categoricas])
-  X_test[v_categoricas] = target_encoder.transform(X_test[v_categoricas])
-
-  return X_train, X_val, X_test
-```
-
-
-```python
-X_train, X_val, X_test = random_forest_preprocessing(X_train, X_val, X_test, y_train)
-```
-
-    c:\Users\orise\AppData\Local\Programs\Python\Python39\lib\site-packages\category_encoders\target_encoder.py:122: FutureWarning:
-    
-    Default parameter min_samples_leaf will change in version 2.6.See https://github.com/scikit-learn-contrib/category_encoders/issues/327
-    
-    c:\Users\orise\AppData\Local\Programs\Python\Python39\lib\site-packages\category_encoders\target_encoder.py:127: FutureWarning:
-    
-    Default parameter smoothing will change in version 2.6.See https://github.com/scikit-learn-contrib/category_encoders/issues/327
-    
-    
-
-<h3>5.2 Rodando o baseline do RandomForest</h3>
+O baseline do RandomForest retornou um R² de 0.88, com um erro quadrático médio de pouco mais de 22 mil em valor médio da habitação de pouco mais de 175 mil
 
 
 ```python
@@ -1046,22 +1068,22 @@ baseline_report
     <tr>
       <th>0</th>
       <td>RMSE</td>
-      <td>22571.24</td>
+      <td>22948.80</td>
     </tr>
     <tr>
       <th>1</th>
       <td>MAE</td>
-      <td>16066.07</td>
+      <td>16376.22</td>
     </tr>
     <tr>
       <th>2</th>
       <td>R^2</td>
-      <td>0.88</td>
+      <td>0.87</td>
     </tr>
     <tr>
       <th>3</th>
       <td>MAPE</td>
-      <td>0.09</td>
+      <td>0.10</td>
     </tr>
     <tr>
       <th>4</th>
@@ -1071,7 +1093,7 @@ baseline_report
     <tr>
       <th>5</th>
       <td>Avg. Prediction</td>
-      <td>175890.72</td>
+      <td>176033.85</td>
     </tr>
   </tbody>
 </table>
@@ -1079,11 +1101,13 @@ baseline_report
 
 
 
-<h3> 5.3 Descobrindo as melhores condições de alguns hiperparametros para o modelo </h3>
+### 5.3 Descobrindo as melhores condições de alguns hiperparametros para o modelo
+
+O baseline do RandomForest já apresenta um resultado relativamente satisfatório, uma vez que o RMSE é tolerável e o valor predito é bem próximo do valor médio. Além disso, o R² encontrado no modelo foi bem alto. Uma última etapa desse trabalho envolve a hiperparametrização a partir dos testes dos hiperparâmetros. Para cada parâmetro são testadas n possibilidades, sendo admitida a possibilidade na qual o valor de RMSE é menor
 
 
 ```python
-#Testando o número de estimadores (as árvores da floresta)
+#Testando o número de estimadores (as "árvores" da floresta)
 
 rmse_final = 0
 n_estimators_final = 0
@@ -1111,7 +1135,7 @@ print('rmse: {}'.format(rmse_final) + ' melhor número de features: {}'.format(n
     número de estimadores: 160
     número de estimadores: 200
     número de estimadores: 240
-    rmse: 22573.93362369258 melhor número de features: 240
+    rmse: 22761.48480355246 melhor número de features: 240
     
 
 
@@ -1153,82 +1177,12 @@ print('rmse: {}'.format(rmse_final) + ' melhor número de features: {}'.format(n
     número de features contabilizadas: 0.8500000000000002
     número de features contabilizadas: 0.9000000000000002
     número de features contabilizadas: 0.9500000000000003
-    rmse: 19440.383380170846 melhor número de features: 0.30000000000000004
+    rmse: 19892.96496276272 melhor número de features: 0.25000000000000006
     
 
-<h3> 5.4 Criando modelo final com número ideal de features e estimadores </h3>
+### 5.4 Criando modelo final com número ideal de features e estimadores
 
-
-```python
-#Validação
-rf_model_final = RandomForestRegressor(n_estimators=240, max_features=0.3)
-rf_model_final.fit(X_train, y_train)
-y_val_model_final = rf_model_final.predict(X_val)
-baseline_report = metrics_report(y_val, y_val_model_final, 'validation')
-baseline_report
-```
-
-
-
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>metric</th>
-      <th>validation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>RMSE</td>
-      <td>20181.34</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>MAE</td>
-      <td>14344.08</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>R^2</td>
-      <td>0.90</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>MAPE</td>
-      <td>0.09</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>Avg. target</td>
-      <td>175268.56</td>
-    </tr>
-    <tr>
-      <th>5</th>
-      <td>Avg. Prediction</td>
-      <td>174789.17</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
-
+A partir dos testes realizados anteriormente foram escolhidos 240 estimadores e leitura de 1/3 das colunas da base
 
 
 ```python
@@ -1302,18 +1256,14 @@ baseline_report
 
 
 
-<h3> 5.5 Permutation Feature Importance para descobrir as features mais importantes </h3>
-
 
 ```python
-permutation_result = permutation_importance(rf_model_final, X_val, y_val, n_repeats=5)
-```
-
-
-```python
-df_importancia = pd.DataFrame({'column' : X_val.columns, 'importance': permutation_result.importances_mean})
-df_importancia.sort_values(by='importance', ascending=False, inplace=True)
-
+#Validação
+rf_model_final = RandomForestRegressor(n_estimators=240, max_features=0.3)
+rf_model_final.fit(X_train, y_train)
+y_val_model_final = rf_model_final.predict(X_val)
+baseline_report = metrics_report(y_val, y_val_model_final, 'validation')
+baseline_report
 ```
 
 
@@ -1337,96 +1287,48 @@ df_importancia.sort_values(by='importance', ascending=False, inplace=True)
   <thead>
     <tr style="text-align: right;">
       <th></th>
-      <th>column</th>
-      <th>importance</th>
+      <th>metric</th>
+      <th>validation</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th>55</th>
-      <td>AreaConstruida</td>
-      <td>0.128364</td>
+      <th>0</th>
+      <td>RMSE</td>
+      <td>20306.62</td>
     </tr>
     <tr>
-      <th>42</th>
-      <td>Qualidade</td>
-      <td>0.125668</td>
+      <th>1</th>
+      <td>MAE</td>
+      <td>14459.51</td>
     </tr>
     <tr>
-      <th>51</th>
-      <td>AreaPorao</td>
-      <td>0.037556</td>
+      <th>2</th>
+      <td>R^2</td>
+      <td>0.90</td>
     </tr>
     <tr>
-      <th>10</th>
-      <td>QualidadeCobertura</td>
-      <td>0.030949</td>
+      <th>3</th>
+      <td>MAPE</td>
+      <td>0.09</td>
     </tr>
     <tr>
-      <th>67</th>
-      <td>AreaGaragem</td>
-      <td>0.024693</td>
+      <th>4</th>
+      <td>Avg. target</td>
+      <td>175268.56</td>
     </tr>
     <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>78</th>
-      <td>Banheiros_por_Quarto</td>
-      <td>-0.000259</td>
-    </tr>
-    <tr>
-      <th>60</th>
-      <td>BedroomAbvGr</td>
-      <td>-0.000328</td>
-    </tr>
-    <tr>
-      <th>54</th>
-      <td>BaixaQualiAreaAcab</td>
-      <td>-0.000373</td>
-    </tr>
-    <tr>
-      <th>11</th>
-      <td>CondicaoExterna</td>
-      <td>-0.000519</td>
-    </tr>
-    <tr>
-      <th>50</th>
-      <td>AreaInacabPorao</td>
-      <td>-0.001421</td>
+      <th>5</th>
+      <td>Avg. Prediction</td>
+      <td>175168.98</td>
     </tr>
   </tbody>
 </table>
-<p>79 rows × 2 columns</p>
 </div>
 
 
 
+## 6 Conclusão
 
-```python
-fig, axs = plt.subplots(figsize=(12,8), facecolor='white')
-ax = sns.barplot(x='column', y="importance", data=df_importancia.nlargest(15, 'importance'))
-plt.xticks(rotation=90)
-plt.tight_layout()
-
-fig.suptitle('Variáveis mais importantes no entendimento dos valores de residências vendidas')
-```
-
-
-
-
-    Text(0.5, 0.98, 'Variáveis mais importantes no entendimento dos valores de residências vendidas')
-
-
-
-
-    
-![png](Regressao_Valor_de_Imovel_Tera_files/Regressao_Valor_de_Imovel_Tera_67_1.png)
-    
-
-
-A partir dos treinos e teste o modelo de machine learning indica que as duas variáveis mais importantes na predição dos valores das residências vendidas são a quantidade de área construída e a qualidade da habiração, juntas, essas variáveis explicam aproximadamente 1/4 do valor dos imóveis. As áreas referentes ao porão, à garagem e ao térreo do edifício também constituem parte importante dos valores, além da qualidade da cobertura.
-
-
+Foram testados dois modelos de Machine Learning para a predição e interpretação dos valores dos imóveis, baseados nos algorítmos de Regressão Linear e RandomForest. O Algoritmo de regressão linear ajudou na interpretação da constituição do valor das habitações com bom índice de explicabilidade: a partir da verificação do modelo é possível identificar que além do aumento da área, a melhoria da qualidade na habitação, a criação de vagas de garagem e a reforma recente ajudam a aumentar o valor do imóvel. A inserção de mais espaço na garagem e a melhoria na qualidade do edifício têm impacto mais rápido no valor do imóvel.
+O modelo de RandomForest considerou a variável absoluta do valor do imóvel e chegou a um bom índice de predição após hiperparametrização, com erro quadrático de cerca de 20 mil, e valor do imóvel em 170 mil. O erro quadrático ainda pode ser refinado a partir de uma hiperparametrização mais densa.
