@@ -1,4 +1,29 @@
-# Tera - Desafio de interpretação e predição do valor de venda de imóveis <a name="Inicio"></a>
+# Quinto Andar - Desafio de interpretação e predição do valor de venda de imóveis <a name="Inicio"></a>
+
+- [Quinto Andar - Desafio de interpretação e predição do valor de venda de imóveis ](#quinto-andar---desafio-de-interpretação-e-predição-do-valor-de-venda-de-imóveis-)
+  - [Introdução e contexto ](#introdução-e-contexto-)
+  - [1. Configurações iniciais ](#1-configurações-iniciais-)
+    - [1.1 Importação das bibliotecas que serão utilizas ao longo do código ](#11-importação-das-bibliotecas-que-serão-utilizas-ao-longo-do-código-)
+    - [1.2 Elaboração de algumas funções utilizadas posteriormente no código ](#12-elaboração-de-algumas-funções-utilizadas-posteriormente-no-código-)
+  - [2. EDA da base original ](#2-eda-da-base-original-)
+    - [2.1 Anotação da variável resposta e das features numéricas e categóricas (cardinais e ordinais) ](#21-anotação-da-variável-resposta-e-das-features-numéricas-e-categóricas-cardinais-e-ordinais-)
+    - [2.2 Entendendo a distribuição da variável resposta ](#22-entendendo-a-distribuição-da-variável-resposta-)
+    - [2.3 Variáveis categóricas: Examinando relações entre as categorias e alterações no valor das residências ](#23-variáveis-categóricas-examinando-relações-entre-as-categorias-e-alterações-no-valor-das-residências-)
+  - [3. Feature Engineering ](#3-feature-engineering-)
+    - [3.1 Removendo Nulos ](#31-removendo-nulos-)
+    - [3.2 Removendo colunas categóricas com alta cardinalidade ](#32-removendo-colunas-categóricas-com-alta-cardinalidade-)
+  - [4. Criando um modelo de interpretação a partir de regressão linear ](#4-criando-um-modelo-de-interpretação-a-partir-de-regressão-linear-)
+    - [4.1 Inserindo as variáveis e rodando o modelo de regressão linear ](#41-inserindo-as-variáveis-e-rodando-o-modelo-de-regressão-linear-)
+    - [4.2 verificando multicolinearidade ](#42-verificando-multicolinearidade-)
+    - [4.3 - Validando o modelo proposto a partir da análise dos resíduos ](#43---validando-o-modelo-proposto-a-partir-da-análise-dos-resíduos-)
+    - [4.4 Interpretação do modelo de regressão linear ](#44-interpretação-do-modelo-de-regressão-linear-)
+  - [5 - Utilizando RandomForest para uma melhor predição do valor do imóvel ](#5---utilizando-randomforest-para-uma-melhor-predição-do-valor-do-imóvel-)
+    - [5.1 - Criando os splits para treino, validação e teste do modelo ](#51---criando-os-splits-para-treino-validação-e-teste-do-modelo-)
+    - [5.2 Rodando o baseline do RandomForest ](#52-rodando-o-baseline-do-randomforest-)
+    - [5.3 Descobrindo as melhores condições de alguns hiperparametros para o modelo ](#53-descobrindo-as-melhores-condições-de-alguns-hiperparametros-para-o-modelo-)
+    - [5.4 Criando modelo final com número ideal de features e estimadores ](#54-criando-modelo-final-com-número-ideal-de-features-e-estimadores-)
+  - [6 Conclusão ](#6-conclusão-)
+
 
 ## Introdução e contexto <a name="0"></a>
 
