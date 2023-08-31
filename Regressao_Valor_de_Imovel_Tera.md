@@ -1,6 +1,6 @@
-# Tera - Desafio de interpretação e predição do valor de venda de imóveis
+# Tera - Desafio de interpretação e predição do valor de venda de imóveis <a name="Inicio"></a>
 
-## Introdução e contexto
+## Introdução e contexto <a name="0"></a>
 
 Esse código apresenta uma resolução para o desafio de regressão proposto durante o curso de Data Science e Machine Learning da Tera. O conjunto de dados descreve a venda de propriedades residenciais individuais de uma cidade americana, entre 2006 e 2010. São 2.930 observações e um npumero considerável de features (23 nominais, 23 ordinais, 14 discretas e 20 contínuas). O dataset tem, ao todo, 80 variáveis explicativas para a determinação do valor do imóvel.
 
@@ -8,9 +8,9 @@ Esse trabalho é dividido em duas partes: Em um primeiro momento é realizada a 
 
 Grandes agradecimentos à equipe da Tera, em especial ao expert Marcus Oliveira, que foi de grande ajuda na solução do problema.
 
-## 1. Configurações iniciais
+## 1. Configurações iniciais <a name="1"></a>
 
-### 1.1 Importação das bibliotecas que serão utilizas ao longo do código
+### 1.1 Importação das bibliotecas que serão utilizas ao longo do código <a name="1.1"></a>
 
 
 ```python
@@ -41,7 +41,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split 
 ```
 
-### 1.2 Elaboração de algumas funções utilizadas posteriormente no código
+### 1.2 Elaboração de algumas funções utilizadas posteriormente no código <a name="1.2"></a>
 
 
 ```python
@@ -134,7 +134,7 @@ def random_forest_preprocessing(X_train: pd.DataFrame(), X_val: pd.DataFrame(), 
 
 ```
 
-## 2. EDA da base original
+## 2. EDA da base original <a name="2"></a>
 
 
 ```python
@@ -235,7 +235,7 @@ df.info(verbose=True)
     memory usage: 924.0+ KB
     
 
-### 2.1 Anotação da variável resposta e das features numéricas e categóricas (cardinais e ordinais)
+### 2.1 Anotação da variável resposta e das features numéricas e categóricas (cardinais e ordinais) <a name="2.1"></a>
 
 
 ```python
@@ -257,7 +257,7 @@ v_cat_card = [x for x in v_cat if x not in v_cat_ord]
 
 ```
 
-### 2.2 Entendendo a distribuição da variável resposta
+### 2.2 Entendendo a distribuição da variável resposta <a name="2.2"></a>
 
 Para efeito de comparação, são feitos os gráficos de distribuição da variável reposta nas formas original e logarítmica. Como há grande diferença entre as duas bases, uma vez que variável em base logaritmica possui distribuição mais próxima à normal, é a mais correta para o trabalho no modelo de interpretação por regressão linear. A escolha procura diminuir os possíveis erros causados pelos outliers no valor do imóvel.
 
@@ -281,7 +281,7 @@ fig = make_subplots(rows= 2, cols=2, subplot_titles=["Distribuição da variáve
 
 
 
-### 2.3 Variáveis categóricas: Examinando relações entre as categorias e alterações no valor das residências
+### 2.3 Variáveis categóricas: Examinando relações entre as categorias e alterações no valor das residências <a name="2.3"></a>
 
 São criados gráficos violinos de todas as variáveis para entender quais dessas têm diferenciações mais significativas no valor do imóvel. As variáveis com maior impacto no valor podem ser as mais interessantes para utilização no modelo. 
 
@@ -353,9 +353,9 @@ df[v_cat].nunique().sort_values(ascending=False)
 
 
 
-## 3. Feature Engineering
+## 3. Feature Engineering <a name="3"></a>
 
-### 3.1 Removendo Nulos
+### 3.1 Removendo Nulos <a name="3.1"></a>
 
 São removidas variáveis com valores muito altos de inputs nulos. Os dados nulos de outras variáveis são inputados a partir da mediana do conjunto para valores numéricos ou do input mais frequente para valores categóricos
 
@@ -405,7 +405,7 @@ df[nulos_numericas] = mascara1.transform(num_com_nulos)
 df[nulos_categoricas] = mascara2.transform(cat_com_nulos)
 ```
 
-### 3.2 Removendo colunas categóricas com alta cardinalidade
+### 3.2 Removendo colunas categóricas com alta cardinalidade <a name="3.2"></a>
 
 Optei pela remoção das colunas com alta cardinalidade ou sem interpretação interessante apenas para simplificação da leitura dos modelos posteriores. Outras situações podem pedir o agrupamento dessas variáveis ou outro tipo de trabalho.
 
@@ -763,11 +763,11 @@ df['Ultima_Reforma'] = df['AnoReforma'] - df['AnoConstrucao']
 df['Banheiros_por_Quarto'] = df['Banheiro']/df['TotalQuartos']
 ```
 
-## 4. Criando um modelo de interpretação a partir de regressão linear
+## 4. Criando um modelo de interpretação a partir de regressão linear <a name="4"></a>
 
 O desafio proposto pela Tera era o de criar um modelo de regressão linear que explicasse ao menos 85% da variação do preço, considerando um máximos de 6 variáveis.
 
-### 4.1 Inserindo as variáveis e rodando o modelo de regressão linear
+### 4.1 Inserindo as variáveis e rodando o modelo de regressão linear <a name="4.1"></a>
 
 Primeiro é feito o encoding de variáveis categóricas para a utilização nos modelos de regressão, essas variáveis são utilizadas na fórmula para obtenção da regressão a partir da biblioteca statsmodel. A escolha da statsmodel ocorreu pela completude da informação da regressão.
 
@@ -829,7 +829,7 @@ print(model.summary())
     strong multicollinearity or other numerical problems.
     
 
-### 4.2 verificando multicolinearidade
+### 4.2 verificando multicolinearidade <a name="4.2"></a>
 
 A multicolinearidade entre as variáveis é verificada através do heatmap das variáveis escolhidas e do Variance Inflation Factor (VIF) entre as variáveis. É importante notar que o VIF foi de 97, muito acima do admitido em testes de maior rigor estatístico ou artigos, mas aceitável para o trabalho proposto.
 
@@ -928,7 +928,7 @@ vif
 
 
 
-<h3>4.3 - Validando o modelo proposto a partir da análise dos resíduos</h3>
+### 4.3 - Validando o modelo proposto a partir da análise dos resíduos <a name="4.3"></a>
 
 A distribuição dos erros é relativamente homoscedástica e os resíduos têm distribuição com alto grau de normalidade
 
@@ -960,7 +960,7 @@ fig.text(s='(VIF: {})'.format(vif.VIF.sum()), y=0.95, x=0.61)
     
 
 
-### 4.4 Interpretação do modelo de regressão linear
+### 4.4 Interpretação do modelo de regressão linear <a name="4.4"></a>
 
 
 ```python
@@ -992,7 +992,7 @@ A melhoria de 1 grau de condição aumenta o preço da residência em 6.21%
 
 A melhoria de 1 grau de qualidade aumenta o preço da residência em 10.59%
 
-## 5 - Utilizando RandomForest para uma melhor predição do valor do imóvel
+## 5 - Utilizando RandomForest para uma melhor predição do valor do imóvel <a name="5"></a>
 
 O algoritmo de regressão linear dá boa explicabilidade sobre o modelo, mas o RandomForest pode alcançar melhores índices na predição, com um erro quadrático menor. Por ser um algoritmo não linear, o RF lida muito melhor com desbalancemantos nas variáveis numéricas e outros problemas que travam o modelo de regressão linear. Apesar da ótima performance do modelo de RF, sua interpretação é difícil, isso justifica o uso anterior do algoritmo de regressão linear para entendimento da constituição do valor do imóvel.
 
@@ -1011,7 +1011,7 @@ var_num.remove('logPrecoVenda')
 var_cat = df.select_dtypes(exclude=["int", "float"]).columns.to_list()
 ```
 
-### 5.1 - Criando os splits para treino, validação e teste do modelo
+### 5.1 - Criando os splits para treino, validação e teste do modelo <a name="5.1"></a>
 
 
 ```python
@@ -1024,7 +1024,7 @@ X_train, X_val, X_test = random_forest_preprocessing(X_train, X_val, X_test, y_t
 
 ```
 
-### 5.2 Rodando o baseline do RandomForest
+### 5.2 Rodando o baseline do RandomForest <a name="5.2"></a>
 
 O baseline do RandomForest retornou um R² de 0.88, com um erro quadrático médio de pouco mais de 22 mil em valor médio da habitação de pouco mais de 175 mil
 
@@ -1101,7 +1101,7 @@ baseline_report
 
 
 
-### 5.3 Descobrindo as melhores condições de alguns hiperparametros para o modelo
+### 5.3 Descobrindo as melhores condições de alguns hiperparametros para o modelo <a name="5.3"></a>
 
 O baseline do RandomForest já apresenta um resultado relativamente satisfatório, uma vez que o RMSE é tolerável e o valor predito é bem próximo do valor médio. Além disso, o R² encontrado no modelo foi bem alto. Uma última etapa desse trabalho envolve a hiperparametrização a partir dos testes dos hiperparâmetros. Para cada parâmetro são testadas n possibilidades, sendo admitida a possibilidade na qual o valor de RMSE é menor
 
@@ -1180,7 +1180,7 @@ print('rmse: {}'.format(rmse_final) + ' melhor número de features: {}'.format(n
     rmse: 19892.96496276272 melhor número de features: 0.25000000000000006
     
 
-### 5.4 Criando modelo final com número ideal de features e estimadores
+### 5.4 Criando modelo final com número ideal de features e estimadores <a name="5.4"></a>
 
 A partir dos testes realizados anteriormente foram escolhidos 240 estimadores e leitura de 1/3 das colunas da base
 
@@ -1328,7 +1328,7 @@ baseline_report
 
 
 
-## 6 Conclusão
+## 6 Conclusão <a name="6"></a>
 
 Foram testados dois modelos de Machine Learning para a predição e interpretação dos valores dos imóveis, baseados nos algorítmos de Regressão Linear e RandomForest. O Algoritmo de regressão linear ajudou na interpretação da constituição do valor das habitações com bom índice de explicabilidade: a partir da verificação do modelo é possível identificar que além do aumento da área, a melhoria da qualidade na habitação, a criação de vagas de garagem e a reforma recente ajudam a aumentar o valor do imóvel. A inserção de mais espaço na garagem e a melhoria na qualidade do edifício têm impacto mais rápido no valor do imóvel.
 O modelo de RandomForest considerou a variável absoluta do valor do imóvel e chegou a um bom índice de predição após hiperparametrização, com erro quadrático de cerca de 20 mil, e valor do imóvel em 170 mil. O erro quadrático ainda pode ser refinado a partir de uma hiperparametrização mais densa.
